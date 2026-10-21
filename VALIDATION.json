@@ -1,0 +1,36 @@
+{
+  "environments": [
+    {
+      "environment": "py314-weewx552",
+      "exit_code": 0,
+      "seconds": 0.23,
+      "summary": "4 passed in 0.08s"
+    },
+    {
+      "environment": "py310-weewx510",
+      "exit_code": 0,
+      "seconds": 0.28,
+      "summary": "4 passed in 0.15s"
+    },
+    {
+      "environment": "py310-weewx410",
+      "exit_code": 0,
+      "seconds": 0.2,
+      "summary": "4 passed in 0.10s"
+    }
+  ],
+  "mutations": [
+    {
+      "mutation": "one-line-log",
+      "test": "tests/test_zabbix.py::test_sender_process_and_one_line_output",
+      "detected": true,
+      "exit_code": 1,
+      "observed_failure": "E       assert False\nE        +  where False = any(<generator object test_sender_process_and_one_line_output.<locals>.<genexpr> at 0x767f43fd4d60>)\nFAILED tests/test_zabbix.py::test_sender_process_and_one_line_output - assert..."
+    }
+  ],
+  "integration": {
+    "status": "passed",
+    "api_version": "7.0.32",
+    "import_result": true
+  }
+}

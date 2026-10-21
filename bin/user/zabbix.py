@@ -1,3 +1,4 @@
+# Modified 2026-10-22 by weewx-packages: compatibility and tracker repairs.
 #############################################################################
 #
 # \brief   Post weewx data to zabbix
@@ -33,6 +34,8 @@ import logging
 
 from subprocess import Popen, PIPE, STDOUT
 
+VERSION = "0.2.0"
+
 log = logging.getLogger(__name__)
 
 class Zabbix(weewx.engine.StdService):
@@ -44,6 +47,8 @@ class Zabbix(weewx.engine.StdService):
         self.enable = weeutil.weeutil.to_bool(conf.get('enable', False))
         self.zabbix_sender = conf.get('zabbix_sender', '/usr/bin/zabbix_sender')
         self.prefix = conf.get('prefix', 'weewx_')
+        units = conf.get('unit_system')
+        self.unit_system = weewx.units.unit_constants[units] if units else None
         self.server = conf.get('server', '127.0.0.1')
         self.host = conf.get('host', 'weewx-host')
 
@@ -54,18 +59,27 @@ class Zabbix(weewx.engine.StdService):
         log.debug("self.host=" + self.host)
 
         if self.enable:
-	        self.bind(weewx.NEW_LOOP_PACKET, self.loop)
+            self.bind(weewx.NEW_LOOP_PACKET, self.loop)
 
     def loop(self, event):
         log.debug("loop data:")
         s = ""
-        for key,value in event.packet.items():
+        packet = event.packet
+        if self.unit_system is not None:
+            packet = weewx.units.to_std_system(packet, self.unit_system)
+        for key,value in packet.items():
+            if value is None:
+                continue
             l=self.host + " " + self.prefix+key + " " + str(value) + "\n"
             s+=l
-            log.debug(l)
+            log.debug(l.rstrip())
 
         c = [self.zabbix_sender, "-z", self.server, "-i", "-"]
         log.debug("command line : " + str(c))
         p = Popen(c, stdout=PIPE, stdin=PIPE, stderr=STDOUT)
         sender_stdout = p.communicate(input=s.encode())[0]
-        log.debug(self.zabbix_sender + " result: " +sender_stdout.decode())
+        result = ' '.join(sender_stdout.decode(errors='replace').split())
+        if p.returncode:
+            log.error('%s exited %d: %s', self.zabbix_sender, p.returncode, result)
+        else:
+            log.debug('%s result: %s', self.zabbix_sender, result)

@@ -1,3 +1,4 @@
+# Modified 2026-10-22 by weewx-packages: compatibility and tracker repairs.
 #############################################################################
 #
 # \brief   Post weewx data to zabbix
@@ -23,7 +24,7 @@
 #
 #############################################################################
 
-from setup import ExtensionInstaller
+from weecfg.extension import ExtensionInstaller
 
 def loader():
     return ZabbixInstaller()
@@ -31,7 +32,7 @@ def loader():
 class ZabbixInstaller(ExtensionInstaller):
     def __init__(self):
         super(ZabbixInstaller, self).__init__(
-            version='0.1',
+            version="0.2.0",
             name='zabbix',
             description='Push data to zabbix server',
             author='Marc Pignat',

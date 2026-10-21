@@ -72,3 +72,9 @@ weewx_cloudbase
 
 The WH2600 weather station pushes data to zabbix using [weewx-interceptor](https://github.com/matthewwall/weewx-interceptor), then weewx-zabbix pushes data to [zabbix](https://www.zabbix.com/).
  
+
+## Zabbix 7 template
+
+Import `weewx_template.yaml` and attach it to the host configured in `[ZABBIX]`. Set `unit_system = METRICWX` in that section. The template expects Celsius, millimetres, metres per second and hPa. Disable items for sensors your station does not provide. Template adapted from Dustin Demuth's upstream PR #10.
+
+Modified 2026-10-22 by weewx-packages.

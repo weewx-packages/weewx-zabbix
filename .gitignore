@@ -1,3 +1,4 @@
+# Modified 2026-10-22 by weewx-packages: ignore local test artifacts.
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
