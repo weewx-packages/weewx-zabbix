@@ -3,31 +3,30 @@
 Send non-null LOOP observations to Zabbix trapper items with `zabbix_sender`.
 The repository also provides a Zabbix 7 template for METRICWX weather data.
 
-This is the weewx-packages continuation, release **0.2.0**.
+This is the weewx-packages continuation of
+[RandomReaper/weewx-zabbix](https://github.com/RandomReaper/weewx-zabbix).
 [Origin](ORIGIN.md) records the upstream revision; [repair notes](REPAIR_NOTES.md)
 describe the maintenance changes.
 
-The catalog archive targets WeeWX `>=5.5.2,<5.7` and Python `>=3.10,<3.15`.
+## Requirements
 
-## Install
+* `zabbix_sender` on the WeeWX host.
+* A Zabbix server with a host for the station. The configured `host` must match
+  the technical host name in Zabbix.
 
-Use `weectl` from the Python environment running WeeWX. With stock WeeWX 5,
-install the published archive:
+The runtime uses only WeeWX and the Python standard library.
 
-```sh
-weectl extension install https://github.com/weewx-packages/weewx-zabbix/releases/download/v0.2.0/weewx-zabbix-0.2.0.tar.gz --config /path/to/weewx.conf
-```
+## Installation
 
-Replace `/path/to/weewx.conf` with your station configuration. You can also
-download that URL and pass the local archive to the same command. Use elevated
-permissions only when your station files require them.
+Install `zabbix` from the [WeeWX packages catalog](https://github.com/weewx-packages/catalog/blob/main/packages/zabbix.md).
+The catalog page lists the current release, its WeeWX and Python
+requirements, and the install, update and removal commands.
 
-## Configure the sender
+The installer registers `user.zabbix.Zabbix` as a process service and adds a
+`[ZABBIX]` section. Adjust it as shown below, restart WeeWX, then check the
+WeeWX log and the Zabbix latest data after the first LOOP packet.
 
-Install `zabbix_sender` on the WeeWX host and create a host on your Zabbix
-server. The configured host name must match Zabbix's technical host name.
-The runtime uses WeeWX and the Python standard library; PyYAML is only needed
-for checks that read the YAML template.
+## Configuration
 
 ```ini
 [ZABBIX]
@@ -39,32 +38,63 @@ for checks that read the YAML template.
     unit_system = METRICWX
 ```
 
-The installer registers `user.zabbix.Zabbix` as a process service. Import
-[weewx_template.yaml](weewx_template.yaml) into Zabbix 7 and attach it to that
-host. It expects Celsius, millimetres, m/s and hPa. Disable items for sensors
-that your station does not provide. The template credits Dustin Demuth's
-upstream contribution.
+| Option | Default | Meaning |
+|---|---|---|
+| `enable` | `false` | Send data. The installer sets it to `true`. |
+| `zabbix_sender` | `/usr/bin/zabbix_sender` | Path of the `zabbix_sender` program. |
+| `server` | `127.0.0.1` | Zabbix server, passed to `zabbix_sender -z`. |
+| `host` | `weewx-host` | Zabbix host that receives the values. |
+| `prefix` | `weewx_` | Prepended to each WeeWX observation name to form the item key. |
+| `unit_system` | none | `US`, `METRIC` or `METRICWX`. Without it, values keep their incoming units. |
 
-Alternatively, create individual items of type `Zabbix trapper`, such as
-`weewx_outTemp`, combining `prefix` with the WeeWX observation name.
+The installer also writes `send_interval = 0`. The service does not read it.
 
-Restart WeeWX yourself, then check the log and Zabbix Latest data after a LOOP
-packet. Nonzero sender exit status is logged as an error.
+The service needs the `[ZABBIX]` section. Without it, or with an unknown
+`unit_system`, WeeWX stops at startup.
 
-## Observations and limits
+### Using the template
 
-Every non-null packet value is sent, including metadata such as `dateTime` and
-`usUnits`. Available keys depend on your station and other services. Without
-`unit_system`, values retain their incoming units. Zero values are included.
+Import [weewx_template.yaml](weewx_template.yaml) into Zabbix 7 and link it to
+the station's host. It expects `prefix = weewx_` and `unit_system = METRICWX`,
+that is Celsius, millimetres, m/s and hPa. Disable the items for sensors your
+station does not have.
 
-The service invokes `zabbix_sender` synchronously for every LOOP packet. The
-installer's `send_interval` setting is not read by the runtime, so it does not
-throttle sending. There is no configurable sender timeout or TLS setup here.
-Use the sender and server's own access controls. This service has no device
-driver or archive replay.
+### Creating items by hand
 
-The original [WH2600 setup diagram](doc/images/wh2600.png) shows a station feeding
-WeeWX through an interceptor, then this service forwarding the readings.
-The extension consumes WeeWX packets and is not tied to that hardware.
+Create an item of type `Zabbix trapper` for each observation you want. The key
+is `prefix` followed by the WeeWX observation name, for example
+`weewx_outTemp`.
+
+## Limitations
+
+* Every non-null value of a LOOP packet is sent, including zero values and
+  metadata such as `dateTime` and `usUnits`. The keys depend on your station
+  and other services.
+* `zabbix_sender` runs synchronously for every LOOP packet. Nothing throttles
+  it, and there is no timeout.
+* A nonzero exit status of `zabbix_sender` is logged as an error. If the
+  program cannot be started, for example because the path is wrong, WeeWX
+  logs `Caught OSError` and restarts its engine after 10 seconds. This repeats
+  with every LOOP packet.
+* There is no TLS or authentication setting. Use the access controls of
+  `zabbix_sender` and the Zabbix server.
+* The service sends LOOP packets only. It does not replay archive records.
+
+The original [WH2600 setup diagram](doc/images/wh2600.png) shows a station
+feeding WeeWX through an interceptor, then this service forwarding the
+readings. The service works with any WeeWX station.
+
+## Development
+
+```sh
+python -m pytest -q tests
+```
+
+Run it in a Python environment with WeeWX, pytest and PyYAML installed. The
+template test reads the YAML file.
+
+## License
 
 Copyright 2018 Marc Pignat. [Apache License 2.0](LICENSE).
+
+The Zabbix 7 template is adapted from a contribution by Dustin Demuth.
