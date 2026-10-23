@@ -46,11 +46,11 @@ WeeWX log and the Zabbix latest data after the first LOOP packet.
 | `host` | `weewx-host` | Zabbix host that receives the values. |
 | `prefix` | `weewx_` | Prepended to each WeeWX observation name to form the item key. |
 | `unit_system` | none | `US`, `METRIC` or `METRICWX`. Without it, values keep their incoming units. |
+| `send_interval` | `0` | Minimum seconds between two runs of `zabbix_sender`. LOOP packets in between are dropped. `0` sends every packet. |
 
-The installer also writes `send_interval = 0`. The service does not read it.
-
-The service needs the `[ZABBIX]` section. Without it, or with an unknown
-`unit_system`, WeeWX stops at startup.
+Without the `[ZABBIX]` section, or with an unknown `unit_system` or a
+non-numeric `send_interval`, the service logs an error and stays off. WeeWX
+keeps running.
 
 ### Using the template
 
@@ -70,12 +70,11 @@ is `prefix` followed by the WeeWX observation name, for example
 * Every non-null value of a LOOP packet is sent, including zero values and
   metadata such as `dateTime` and `usUnits`. The keys depend on your station
   and other services.
-* `zabbix_sender` runs synchronously for every LOOP packet. Nothing throttles
-  it, and there is no timeout.
+* `zabbix_sender` runs synchronously for every packet it sends. There is no
+  timeout.
 * A nonzero exit status of `zabbix_sender` is logged as an error. If the
-  program cannot be started, for example because the path is wrong, WeeWX
-  logs `Caught OSError` and restarts its engine after 10 seconds. This repeats
-  with every LOOP packet.
+  program cannot be started, for example because the path is wrong, the error
+  is logged and the packet is dropped. This repeats with every LOOP packet.
 * There is no TLS or authentication setting. Use the access controls of
   `zabbix_sender` and the Zabbix server.
 * The service sends LOOP packets only. It does not replay archive records.
