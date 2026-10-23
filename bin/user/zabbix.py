@@ -38,7 +38,7 @@ import logging
 
 from subprocess import Popen, PIPE, STDOUT
 
-VERSION = "0.2.0"
+VERSION = "0.2.1"
 
 log = logging.getLogger(__name__)
 

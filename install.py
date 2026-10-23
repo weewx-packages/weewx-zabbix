@@ -32,7 +32,7 @@ def loader():
 class ZabbixInstaller(ExtensionInstaller):
     def __init__(self):
         super(ZabbixInstaller, self).__init__(
-            version="0.2.0",
+            version="0.2.1",
             name='zabbix',
             description='Push data to zabbix server',
             author='Marc Pignat',
