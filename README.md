@@ -1,80 +1,70 @@
-# weewx-zabbix
-Allow [weewx](http://www.weewx.com/) (open source software for your weather station) to push data to [zabbix](https://www.zabbix.com/) (open source monitoring software).
+# WeeWX observations for Zabbix
 
-## Installation
-Should I really say that a working **weewx** and **zabbix** setup are requiered?
+Send non-null LOOP observations to Zabbix trapper items with `zabbix_sender`.
+The repository also provides a Zabbix 7 template for METRICWX weather data.
 
-### Dependencies
-This plugins uses the `zabbix_sender` command, so it must be available on the host running **weewx**.
+This is the weewx-packages continuation, release **0.2.0**.
+[Origin](ORIGIN.md) records the upstream revision; [repair notes](REPAIR_NOTES.md)
+describe the maintenance changes.
 
-### Build the package, or get it from [here](https://github.com/RandomReaper/weewx-zabbix/releases/latest)
+The catalog archive targets WeeWX `>=5.5.2,<5.7` and Python `>=3.10,<3.15`.
+
+## Install
+
+Use `weectl` from the Python environment running WeeWX. With stock WeeWX 5,
+install the published archive:
+
+```sh
+weectl extension install https://github.com/weewx-packages/weewx-zabbix/releases/download/v0.2.0/weewx-zabbix-0.2.0.tar.gz --config /path/to/weewx.conf
 ```
-mkdir -p ~/git/ && cd ~/git && git clone https://github.com/RandomReaper/weewx-zabbix.git
-cd weewx-zabbix
-./gen-tar.sh
-```
 
-## Install the weewx extension
-sudo wee_extension --install weewx-zabbix.tgz
+Replace `/path/to/weewx.conf` with your station configuration. You can also
+download that URL and pass the local archive to the same command. Use elevated
+permissions only when your station files require them.
 
-## Configure the weewx extension
-```
-# Options for extension 'zabbix'
+## Configure the sender
+
+Install `zabbix_sender` on the WeeWX host and create a host on your Zabbix
+server. The configured host name must match Zabbix's technical host name.
+The runtime uses WeeWX and the Python standard library; PyYAML is only needed
+for checks that read the YAML template.
+
+```ini
 [ZABBIX]
-    # service can be disabled
     enable = true
-    
-    # zabbix_sender full name+path
     zabbix_sender = /usr/bin/zabbix_sender
-
-    # Zabbix server IP
     server = 127.0.0.1
-
-    # Zabbix host to store the values
-    host = server-home
-    
-    # Prefix for generating the zabbix key name
+    host = weewx-host
     prefix = weewx_
+    unit_system = METRICWX
 ```
-## Add the key to zabbix
-Add a key of type "Zabbix trapper", with the key name weewx_outTemp (formed with the prefix set in the config file + the weewx key name).
 
-## Availables key
-Here is a list of the key pushed on my system, probably configuration dependant.
-```
-weewx_altimeter
-weewx_heatindex
-weewx_radiation
-weewx_inDewpoint
-weewx_inTemp
-weewx_barometer
-weewx_windchill
-weewx_dewpoint
-weewx_rain
-weewx_humidex
-weewx_pressure
-weewx_rainRate
-weewx_usUnits
-weewx_txBatteryStatus
-weewx_appTemp
-weewx_UV
-weewx_dateTime
-weewx_windDir
-weewx_outTemp
-weewx_windSpeed
-weewx_inHumidity
-weewx_windGust
-weewx_windGustDir
-weewx_cloudbase
-```
-## My setup
-![WH2600](doc/images/wh2600.png)
+The installer registers `user.zabbix.Zabbix` as a process service. Import
+[weewx_template.yaml](weewx_template.yaml) into Zabbix 7 and attach it to that
+host. It expects Celsius, millimetres, m/s and hPa. Disable items for sensors
+that your station does not provide. The template credits Dustin Demuth's
+upstream contribution.
 
-The WH2600 weather station pushes data to zabbix using [weewx-interceptor](https://github.com/matthewwall/weewx-interceptor), then weewx-zabbix pushes data to [zabbix](https://www.zabbix.com/).
- 
+Alternatively, create individual items of type `Zabbix trapper`, such as
+`weewx_outTemp`, combining `prefix` with the WeeWX observation name.
 
-## Zabbix 7 template
+Restart WeeWX yourself, then check the log and Zabbix Latest data after a LOOP
+packet. Nonzero sender exit status is logged as an error.
 
-Import `weewx_template.yaml` and attach it to the host configured in `[ZABBIX]`. Set `unit_system = METRICWX` in that section. The template expects Celsius, millimetres, metres per second and hPa. Disable items for sensors your station does not provide. Template adapted from Dustin Demuth's upstream PR #10.
+## Observations and limits
 
-Modified 2026-10-22 by weewx-packages.
+Every non-null packet value is sent, including metadata such as `dateTime` and
+`usUnits`. Available keys depend on your station and other services. Without
+`unit_system`, values retain their incoming units. Zero values are included.
+
+The service invokes `zabbix_sender` synchronously for every LOOP packet. The
+installer's `send_interval` setting is not read by the runtime, so it does not
+throttle sending. There is no configurable sender timeout or TLS setup here.
+Use the sender and server's own access controls. This service has no device
+driver or archive replay.
+
+The original [WH2600 setup diagram](doc/images/wh2600.png) shows a station feeding
+WeeWX through an interceptor, then this service forwarding the readings.
+The extension consumes WeeWX packets and is not tied to that hardware.
+
+Copyright 2018 Marc Pignat. [Apache License 2.0](LICENSE).
