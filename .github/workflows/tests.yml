@@ -11,3 +11,5 @@ permissions:
 jobs:
   tests:
     uses: weewx-packages/catalog/.github/workflows/package-tests.yml@main
+    with:
+      pip-packages: 'PyYAML'
